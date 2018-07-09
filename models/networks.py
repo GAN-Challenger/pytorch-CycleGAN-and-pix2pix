@@ -113,7 +113,38 @@ def print_network(net, verbose=False):
 ##############################################################################
 # Classes
 ##############################################################################
+#define the content loss
+class ContentLoss(nn.Module):
+    def __init__(self,contonts,lambda_C):
+        self.contents = contonts.split(" ")
+        self.lamdba_C = lambda_C
+        self.loss = []
+        for i in range(len(self.contents)):
+            self.loss.append(nn.L1Loss())
+        self.submodule = models.vgg16(pretrained=True)
 
+    def subNetForward(self, x ,flag = False):
+        outputs = []
+        for name, module in self.submodule._modules.items():
+            x = module(x)  # last layer output put into current layer input
+            #print(name)
+            if flag:
+                x = x.detach()
+            if name in self.contents:
+                outputs.append(x)
+        return outputs
+
+    def contentLoss(self,input,target):
+        input = subNetForward(input)
+        target = subNetForward(target,True)
+
+        l1loss = 0
+        for i in range(len(self.contents)):
+            l1loss += self.loss[i](input[i],target[i])
+        return l1loss*self.lamdba
+
+    def __call__(self,input,target)
+        return contentLoss(input,target)
 
 # Defines the GAN loss which uses either LSGAN or the regular GAN.
 # When LSGAN is used, it is basically same as MSELoss,
