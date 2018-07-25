@@ -11,8 +11,8 @@ class CartoonDataset(BaseDataset):
         self.opt = opt
         self.root = opt.dataroot
         #A is the content B is the style
-        self.dir_C = os.path.join(opt.dataroot, opt.phase + '_C')
-        self.dir_S = os.path.join(opt.dataroot, opt.phase + '_S')
+        self.dir_C = os.path.join(opt.dataroot, opt.phase + 'C')
+        self.dir_S = os.path.join(opt.dataroot, opt.phase + 'S')
 
         self.C_paths = make_dataset(self.dir_C)
         self.S_paths = make_dataset(self.dir_S)
@@ -36,6 +36,10 @@ class CartoonDataset(BaseDataset):
         random.shuffle(self.list_E)
         self.index_E = 0
 
+        print("------------cartoon_gan---------------")
+        print("cartoon gan dataset initialize finish!")
+        print("------------cartoon_gan---------------")
+
     def __getitem__(self, index):
         if self.index_C >= self.C_size:
             random.shuffle(self.list_C)
@@ -49,13 +53,13 @@ class CartoonDataset(BaseDataset):
             random.shuffle(self.list_E)
             self.index_E = 0 			
 
-        C_path = self.C_paths[self.list[self.index_C]]
+        C_path = self.C_paths[self.list_C[self.index_C]]
         self.index_C += 1
 		
-        S_path = self.S_paths[self.list[self.index_S]]
+        S_path = self.S_paths[self.list_S[self.index_S]]
         self.index_S += 1
 
-        E_path = self.S_paths[self.list[self.index_E]]
+        E_path = self.S_paths[self.list_E[self.index_E]]
         self.index_E += 1		
         #B_path = self.B_paths[index_B]
         # print('(A, B) = (%d, %d)' % (index_A, index_B))
@@ -89,7 +93,7 @@ class CartoonDataset(BaseDataset):
         return {'C': C, 'S': S, "E": E,'C_paths': C_path,'S_paths': S_path,'E_paths': E_path}
 
     def __len__(self):
-        return max(self.A_size, self.B_size)
+        return max(self.C_size, self.S_size)
 
     def name(self):
         return 'CartoonDataset'

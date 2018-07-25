@@ -6,13 +6,14 @@ from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
 from util import util
-import torchvision.models as models
+#import torchvision.models as models
 
 class CartoonGANModel(BaseModel):
     def name(self):
         return "CartoonGANModel"
-
-    def initalize(self,opt):
+    
+    def initialize(self,opt):
+        print("------cartoon gan initialize------")
         BaseModel.initialize(self,opt)
         self.netG = networks.define_G(opt.input_nc, opt.output_nc,opt.ngf, opt.which_model_netG, opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
@@ -26,13 +27,13 @@ class CartoonGANModel(BaseModel):
             self.load_network(self.netG, 'G', which_epoch)
             if self.isTrain:
                 self.load_network(self.netD_A, 'D', which_epoch)
-
+        #print self.isTrain
         if self.isTrain:
             #self.real = ImagePool(opt.pool_size)
             #self.fake = ImagePool(opt.pool_size)
             # define loss functions
             self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
-            self.criterionContent = networks.ContentLoss(opt.contents,opt.lambda_content)
+            self.criterionContent = networks.ContentLoss(opt.content_loss,opt.lambda_content,opt.gpu_ids[0])
 
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG.parameters()),lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -53,6 +54,7 @@ class CartoonGANModel(BaseModel):
 
     def set_input(self, input):
         #AtoB = self.opt.which_direction == 'AtoB'
+        #print("call set_input!")
         input_C = input["C"]
         input_S = input["S"]
         input_E = input["E"]
@@ -66,14 +68,19 @@ class CartoonGANModel(BaseModel):
         #self.image_paths = input['A_paths' if AtoB else 'B_paths')
 
     def forward(self):
+        #print("call forward!")
         self.content = Variable(self.input_C)		
         self.style = Variable(self.input_S)
         self.edge = Variable(self.input_E)
 
-    def backward_G_Content(self):
+    def backward_G_content(self):
+        #print self.content
         self.gfake = self.netG(self.content)
+        #print("call backward_g_content...")
         self.loss_C = self.criterionContent(self.gfake,self.content)
         self.loss_C.backward()
+        self.loss_G = 0
+        self.loss_D = 0
 
     def backward_G(self):
         # GAN loss D(G(A))
@@ -104,9 +111,10 @@ class CartoonGANModel(BaseModel):
         self.loss_D = self.backward_D_basic(self.netD, self.style, self.edge,self.gfake)
 
     def pre_optimize_parameters(self):
+        self.forward()
         #initialize generator net
         self.optimizer_G.zero_grad()
-        backward_G_Content()
+        self.backward_G_content()
         self.optimizer_G.step()
 
     def optimize_parameters(self):
@@ -122,9 +130,9 @@ class CartoonGANModel(BaseModel):
         self.optimizer_D.step()
 
     def get_current_errors(self):
-        ret_errors = OrderedDict([('D', self.loss_D), ('G', self.loss_G), ('C', self.loss_C)]
+        ret_errors = OrderedDict([('D', self.loss_D), ('G', self.loss_G), ('C', self.loss_C)])
         return ret_errors
 
-    def save(self):
+    def save(self,label):
         self.save_network(self.netG, 'G', label, self.gpu_ids)
         self.save_network(self.netD, 'D', label, self.gpu_ids)

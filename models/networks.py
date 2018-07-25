@@ -4,6 +4,7 @@ from torch.nn import init
 import functools
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
+import torchvision.models as models
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -114,20 +115,22 @@ def print_network(net, verbose=False):
 # Classes
 ##############################################################################
 #define the content loss
-class ContentLoss(nn.Module):
-    def __init__(self,contonts,lambda_C):
+class ContentLoss():
+    def __init__(self,contonts,lambda_C,gpu_id):
         self.contents = contonts.split(" ")
         self.lamdba_C = lambda_C
         self.loss = []
         for i in range(len(self.contents)):
             self.loss.append(nn.L1Loss())
-        self.submodule = models.vgg16(pretrained=True)
+        self.vgg16 = models.vgg16(pretrained=True)._modules.items()[0][1]
+        if gpu_id >= 0:
+            self.vgg16 = self.vgg16.cuda(gpu_id)
 
     def subNetForward(self, x ,flag = False):
         outputs = []
-        for name, module in self.submodule._modules.items():
-            x = module(x)  # last layer output put into current layer input
+        for name, module in self.vgg16._modules.items():
             #print(name)
+            x = module(x)
             if flag:
                 x = x.detach()
             if name in self.contents:
@@ -135,16 +138,18 @@ class ContentLoss(nn.Module):
         return outputs
 
     def contentLoss(self,input,target):
-        input = subNetForward(input)
-        target = subNetForward(target,True)
+        input = self.subNetForward(input)
+        target = self.subNetForward(target,True)
 
         l1loss = 0
         for i in range(len(self.contents)):
             l1loss += self.loss[i](input[i],target[i])
-        return l1loss*self.lamdba
-
-    def __call__(self,input,target)
-        return contentLoss(input,target)
+        return l1loss*self.lamdba_C
+    
+    def __call__(self,input,target):
+        #print("content loss call me!")
+        return self.loss[0](input,target.detach())
+        #return self.contentLoss(input,target)
 
 # Defines the GAN loss which uses either LSGAN or the regular GAN.
 # When LSGAN is used, it is basically same as MSELoss,
@@ -231,7 +236,8 @@ class ResnetGenerator(nn.Module):
                       nn.ReLU(True)]
         model += [nn.ReflectionPad2d(3)]
         model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
-        model += [nn.Tanh()]
+        #model += [nn.Tanh()]
+        model += [nn.Sigmoid()]
 
         self.model = nn.Sequential(*model)
 

@@ -8,12 +8,19 @@ def create_model(opt):
         assert(opt.dataset_mode == 'aligned')
         from .pix2pix_model import Pix2PixModel
         model = Pix2PixModel()
+    elif opt.model == "cartoon_gan":
+        assert(opt.dataset_mode == "cartoon")
+        from .cartoon_gan_model import CartoonGANModel
+        model = CartoonGANModel()
+        #print("__init__ call me ...!")
     elif opt.model == 'test':
         assert(opt.dataset_mode == 'single')
         from .test_model import TestModel
         model = TestModel()
     else:
         raise NotImplementedError('model [%s] not implemented.' % opt.model)
+
+    #model.test_call()
     model.initialize(opt)
     print("model [%s] was created" % (model.name()))
     return model
