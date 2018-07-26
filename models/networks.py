@@ -120,36 +120,45 @@ class ContentLoss():
         self.contents = contonts.split(" ")
         self.lamdba_C = lambda_C
         self.loss = []
+        self.loss_ = nn.L1Loss()
         for i in range(len(self.contents)):
             self.loss.append(nn.L1Loss())
         self.vgg16 = models.vgg16(pretrained=True)._modules.items()[0][1]
         if gpu_id >= 0:
             self.vgg16 = self.vgg16.cuda(gpu_id)
 
-    def subNetForward(self, x ,flag = False):
+    def subNetForward(self, x):
         outputs = []
         for name, module in self.vgg16._modules.items():
             #print(name)
             x = module(x)
-            if flag:
-                x = x.detach()
             if name in self.contents:
+                #if flag:
+                #    x = x.detach()
                 outputs.append(x)
+                #print name,x.size()
+
         return outputs
 
     def contentLoss(self,input,target):
-        input = self.subNetForward(input)
-        target = self.subNetForward(target,True)
+        _input = self.subNetForward(input)
+        _target = self.subNetForward(target)
 
-        l1loss = 0
+        
         for i in range(len(self.contents)):
-            l1loss += self.loss[i](input[i],target[i])
+            diff = torch.add(_input[i],-1,_target[i].detach())
+            diff = torch.abs(diff)
+            diff = torch.clamp(diff,0,1)
+            l1loss = torch.mean(diff)
+            #l1loss += self.loss[i](_input[i],_target[i].detach())
+        #print "content loss : ",l1loss.data.cpu().numpy()[0]
         return l1loss*self.lamdba_C
     
     def __call__(self,input,target):
         #print("content loss call me!")
-        return self.loss[0](input,target.detach())
-        #return self.contentLoss(input,target)
+        #return self.loss[0](input,target.detach())
+        return self.contentLoss(input,target)
+        #return  self.loss_(input,target.detach())
 
 # Defines the GAN loss which uses either LSGAN or the regular GAN.
 # When LSGAN is used, it is basically same as MSELoss,

@@ -14,6 +14,7 @@ class CartoonGANModel(BaseModel):
     
     def initialize(self,opt):
         print("------cartoon gan initialize------")
+        self.batchsize = opt.batchSize
         BaseModel.initialize(self,opt)
         self.netG = networks.define_G(opt.input_nc, opt.output_nc,opt.ngf, opt.which_model_netG, opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
@@ -37,6 +38,7 @@ class CartoonGANModel(BaseModel):
 
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG.parameters()),lr=opt.lr, betas=(opt.beta1, 0.999))
+            #self.optimizer_G = torch.optim.SGD(itertools.chain(self.netG.parameters()),lr=0.0005, momentum=0.7)
             self.optimizer_D = torch.optim.Adam(itertools.chain(self.netD.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
 
             self.optimizers = []
@@ -72,12 +74,36 @@ class CartoonGANModel(BaseModel):
         self.content = Variable(self.input_C)		
         self.style = Variable(self.input_S)
         self.edge = Variable(self.input_E)
+    def vggInput(self,input):
+        l = []
+        for i in range(input.size()[0]):
+            r = torch.add(input[i][0],-0.485)
+            r = torch.div(r,0.229)
+            r = r.view(1,1,r.size()[0],r.size()[1])
+
+            g = torch.add(input[i][1],-0.456)
+            g = torch.div(g,0.224)
+            g = g.view(1,1,g.size()[0],g.size()[1])
+
+            b = torch.add(input[i][2],-0.406)
+            b = torch.div(b,0.225)
+            b = b.view(1,1,b.size()[0],b.size()[1])
+
+            rgb = torch.cat((r,g,b),1)
+            l.append(rgb)
+
+        return torch.cat(l,0)
 
     def backward_G_content(self):
         #print self.content
         self.gfake = self.netG(self.content)
+        gfake = self.vggInput(self.gfake)
+        content = self.vggInput(self.content)
+
+        #print gfake.size()
+        #print content.size()
         #print("call backward_g_content...")
-        self.loss_C = self.criterionContent(self.gfake,self.content)
+        self.loss_C = self.criterionContent(gfake,content)
         self.loss_C.backward()
         self.loss_G = 0
         self.loss_D = 0
@@ -85,7 +111,10 @@ class CartoonGANModel(BaseModel):
     def backward_G(self):
         # GAN loss D(G(A))
         self.gfake = self.netG(self.content)
-        self.loss_C = self.criterionContent(self.gfake,self.content)
+        gfake = self.vggInput(self.gfake)
+        content = self.vggInput(self.content)
+
+        self.loss_C = self.criterionContent(gfake,content)
         self.loss_G = self.criterionGAN(self.netD(self.gfake), True)
         self.loss_C.backward()
         self.loss_G.backward()
