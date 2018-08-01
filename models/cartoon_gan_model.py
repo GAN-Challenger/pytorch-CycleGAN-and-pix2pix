@@ -17,17 +17,15 @@ class CartoonGANModel(BaseModel):
         self.batchsize = opt.batchSize
         BaseModel.initialize(self,opt)
         self.netG = networks.define_G(opt.input_nc, opt.output_nc,opt.ngf, opt.which_model_netG, opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
-
         if self.isTrain:
-            use_sigmoid = opt.no_lsgan
-	
-        self.netD = networks.define_D(opt.output_nc, opt.ndf,opt.which_model_netD,opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids)
+            use_sigmoid = opt.no_lsgan	
+            self.netD = networks.define_D(opt.output_nc, opt.ndf,opt.which_model_netD,opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids)
 
         if not self.isTrain or opt.continue_train:
             which_epoch = opt.which_epoch
             self.load_network(self.netG, 'G', which_epoch)
             if self.isTrain:
-                self.load_network(self.netD_A, 'D', which_epoch)
+                self.load_network(self.netD, 'D', which_epoch)
         #print self.isTrain
         if self.isTrain:
             #self.real = ImagePool(opt.pool_size)
@@ -35,10 +33,12 @@ class CartoonGANModel(BaseModel):
             # define loss functions
             self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
             self.criterionContent = networks.ContentLoss(opt.content_loss,opt.lambda_content,opt.gpu_ids[0])
-
+ 
+            #self.optimizer_G = torch.optim.Adadelta(itertools.chain(self.netG.parameters()),lr=opt.lr)
+            #self.optimizer_G = torch.optim.RMSprop(itertools.chain(self.netG.parameters()),lr=opt.lr)
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG.parameters()),lr=opt.lr, betas=(opt.beta1, 0.999))
-            #self.optimizer_G = torch.optim.SGD(itertools.chain(self.netG.parameters()),lr=0.0005, momentum=0.7)
+            #self.optimizer_G = torch.optim.SGD(itertools.chain(self.netG.parameters()),lr=opt.lr, momentum=0)
             self.optimizer_D = torch.optim.Adam(itertools.chain(self.netD.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
 
             self.optimizers = []
@@ -70,10 +70,20 @@ class CartoonGANModel(BaseModel):
         #self.image_paths = input['A_paths' if AtoB else 'B_paths')
 
     def forward(self):
-        #print("call forward!")
         self.content = Variable(self.input_C)		
         self.style = Variable(self.input_S)
         self.edge = Variable(self.input_E)
+
+    def inference(self,_input):
+        if len(self.gpu_ids) > 0:
+            _input = _input.cuda(self.gpu_ids[0])
+        self.content = Variable(_input,volatile=True)
+        self.gfake = self.netG(self.content)
+    def to_image(self,tensor):
+        return util.tensor2im(tensor)
+    def save_image(self,path,tensor):
+        util.save_image(self.to_image(tensor),path)
+
     def vggInput(self,input):
         l = []
         for i in range(input.size()[0]):

@@ -115,6 +115,7 @@ def print_network(net, verbose=False):
 # Classes
 ##############################################################################
 #define the content loss
+#use vgg19 as content loss
 class ContentLoss():
     def __init__(self,contonts,lambda_C,gpu_id):
         self.contents = contonts.split(" ")
@@ -123,7 +124,7 @@ class ContentLoss():
         self.loss_ = nn.L1Loss()
         for i in range(len(self.contents)):
             self.loss.append(nn.L1Loss())
-        self.vgg16 = models.vgg16(pretrained=True)._modules.items()[0][1]
+        self.vgg16 = models.vgg19(pretrained=True)._modules.items()[0][1]
         if gpu_id >= 0:
             self.vgg16 = self.vgg16.cuda(gpu_id)
 
@@ -143,21 +144,28 @@ class ContentLoss():
     def contentLoss(self,input,target):
         _input = self.subNetForward(input)
         _target = self.subNetForward(target)
-
-        
+ 
+        l1loss = 0
         for i in range(len(self.contents)):
-            diff = torch.add(_input[i],-1,_target[i].detach())
-            diff = torch.abs(diff)
-            diff = torch.clamp(diff,0,1)
-            l1loss = torch.mean(diff)
-            #l1loss += self.loss[i](_input[i],_target[i].detach())
+            #diff = torch.add(_input[i],-1,_target[i].detach())
+            #diff = torch.abs(diff)
+            #_max = torch.max(diff)
+            #print "max : ",_max.data.cpu().numpy()[0]
+            # diff = torch.clamp(diff,0,5)
+            #l1loss = torch.mean(diff)
+            l1loss += self.loss[i](_input[i],_target[i].detach())
         #print "content loss : ",l1loss.data.cpu().numpy()[0]
         return l1loss*self.lamdba_C
     
     def __call__(self,input,target):
         #print("content loss call me!")
         #return self.loss[0](input,target.detach())
-        return self.contentLoss(input,target)
+        #diff = torch.add(input,-1,target)
+        #diff = torch.abs(diff)
+        #diff = torch.mean(diff)
+        #rcLoss = self.loss_(input,target.detach())
+        #print "diff : ",r.data.cpu().numpy()[0]
+        return self.contentLoss(input,target) # + rcLoss*0.5
         #return  self.loss_(input,target.detach())
 
 # Defines the GAN loss which uses either LSGAN or the regular GAN.
