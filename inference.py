@@ -45,12 +45,17 @@ if __name__ == "__main__":
     filelist = getImageList(opt.dataroot)
     for image_file in filelist:
         print image_file,"..."
-        image = loadImage(opt.dataroot + "/" + image_file,opt.findSize,opt.findSize)
+        image = loadImage(opt.dataroot + "/" + image_file,opt.fineSize,opt.fineSize)
         image = trans(image)
         image = torch.unsqueeze(image, 0)
-        if opt.which_direction == "AtoB":
-            model.inferenceA2B(image)
-            model.save_image(opt.results_dir + "/gb_" + image_file,model.fake_B)
-        else:
-            model.inferenceB2A(image)
-            model.save_image(opt.results_dir + "/ga_" + image_file,model.fake_A) 
+        if opt.model == "cycle_gan":
+            if opt.which_direction == "AtoB":
+                model.inferenceA2B(image)
+                model.save_image(opt.results_dir + "/gb_" + image_file,model.fake_B)
+            else:
+                model.inferenceB2A(image)
+                model.save_image(opt.results_dir + "/ga_" + image_file,model.fake_A)
+
+        if opt.model == "cartoon_gan":
+                model.inference(image)
+                model.save_image(opt.results_dir + "/"+ image_file,model.gfake) 

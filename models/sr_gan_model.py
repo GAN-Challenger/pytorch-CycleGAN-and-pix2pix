@@ -8,7 +8,7 @@ from . import networks
 from util import util
 #import torchvision.models as models
 
-class CartoonGANModel(BaseModel):
+class SRGANModel(BaseModel):
     def name(self):
         return "CartoonGANModel"
     

@@ -165,7 +165,7 @@ class ContentLoss():
         #diff = torch.mean(diff)
         #rcLoss = self.loss_(input,target.detach())
         #print "diff : ",r.data.cpu().numpy()[0]
-        return self.contentLoss(input,target) # + rcLoss*0.5
+        return self.contentLoss(input,target)# + rcLoss*0.5
         #return  self.loss_(input,target.detach())
 
 # Defines the GAN loss which uses either LSGAN or the regular GAN.

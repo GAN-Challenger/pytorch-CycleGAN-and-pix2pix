@@ -6,7 +6,7 @@ import random
 import cv2
 
 #the input image : content_image target_image target_no_edge_image
-class CartoonDataset(BaseDataset):
+class SRDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
         self.root = opt.dataroot
